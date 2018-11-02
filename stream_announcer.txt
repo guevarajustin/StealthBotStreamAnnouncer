@@ -1,0 +1,141 @@
+'''''''''''
+'
+
+Option Explicit
+Script("Name") = "bnet_chat_stream_announcements"
+Script("Author") = "Programmer"
+Script("Major") = 0
+Script("Minor") = 1
+Script("Revision") = 0
+
+'''''''''''
+'
+
+Private streamers
+streamers = Array()
+Private Const announce_new_streamers_update_interval = 60
+Private Const announce_current_streamers_update_interval = 1800
+Private objxmlhttp
+Private Const is_on = 1
+Private Const Access = 10
+
+'''''''''''
+'
+
+' Subroutines called at a regular interval
+Sub Event_Load()
+
+	If is_on = 1 Then
+		Set objxmlhttp = CreateObject("MSXML2.XMLHTTP.6.0")
+		CreateObj "LongTimer", "announce_new_streamers"
+		announce_new_streamers.Enabled = True
+		announce_new_streamers.Interval = announce_new_streamers_update_interval
+
+		CreateObj "LongTimer", "announce_current_streamers"
+		announce_current_streamers.Enabled = True
+		announce_current_streamers.Interval = announce_current_streamers_update_interval
+	End If
+	
+End Sub
+
+Private Function Connect(Request)
+	With objxmlhttp
+		.Open "GET", Request, False
+		.Send
+		Connect = .ResponseText
+	End With
+End Function
+
+Sub announce_new_streamers_Timer()
+
+	Dim display '// chat output
+	display = ""
+	Dim response '// twitch HTTP response
+	Dim latest_status '// status after call 
+	Dim previous_status '// status before call (offline status assumed if first interval call hasn't been executed yet)
+	Dim number_of_streamers_started
+	number_of_streamers_started = 0
+
+	Dim i
+	For i = 0 To UBound(streamers)
+
+		response = ""
+		latest_status = 0
+		previous_status = 0
+
+		'// get pre call streamer status 
+		previous_status = streamers(i)(2)
+		
+		'// get current streamer status, then update global array
+    		response = Connect(streamers(i)(0))
+		If (Mid(response, 1, 15) = "{""stream"":{""_id") Then 
+			latest_status = 1
+			streamers(i)(2) = 1
+		Else
+			latest_status = 0
+			streamers(i)(2) = 0
+		End If
+
+		'// if previous status is 0 and latest status is 1, display a message in chat
+		If previous_status = 0 Then
+			If latest_status = 1 Then
+				number_of_streamers_started = number_of_streamers_started + 1 '// we need to know if at least 1 streamer is active
+				If display = "" Then '// if first name in sentence
+					display = streamers(i)(1)
+				Else
+					display = display & ", " & streamers(i)(1)
+				End If
+				
+			End If
+		End If
+
+		'// after each loop iteration, application will wait to avoid flooding bnet chat and/or twitch api
+		'// NOT IMPLEMENTED
+		
+	Next
+Dsp 1, "test", "", vbCyan
+	If display <> "" Then '// only output if there is a message to output
+		If number_of_streamers_started > 1 Then '// determine if singular vs plural language used
+			display = display & " have started streaming! (automated message)"
+		Else
+			display = display & " has started streaming! (automated message)"
+		End If
+
+		Dsp 1, display, "", vbCyan
+	End If
+
+End Sub
+
+Sub announce_current_streamers_Timer()
+
+	Dim display
+	display = ""
+	Dim i
+	Dim number_of_streamers_started
+	number_of_streamers_started = 0
+
+	For i = 0 To UBound(streamers)
+
+		'// streamer is streaming, add name
+		
+		If streamers(i)(2) = 1 Then
+			number_of_streamers_started = number_of_streamers_started + 1 '// we need to know if at least 1 streamer is active
+			If display = "" Then '// if first name in sentence
+				display = streamers(i)(1)
+			Else
+				display = display & ", " & streamers(i)(1)
+			End If
+		End If
+
+	Next
+
+	If display <> "" Then '// only output if there is a message to output
+		If number_of_streamers_started > 1 Then '// determine if singular vs plural language used
+			display = display & " are currently streaming! (automated message)"
+		Else
+			display = display & " is currently streaming! (automated message)"
+		End If
+		Dsp 1, display, "", vbCyan
+	End If
+
+End Sub

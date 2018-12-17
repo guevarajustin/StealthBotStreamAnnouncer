@@ -31,5 +31,5 @@ streamers = Array( _
 
 ## Issues
 
-* No delay implemented between web API calls. It's possible that requets are made too fast and server throttling is triggered.
+* No delay implemented between web API calls. It's possible that requests are made too fast and server throttling is triggered.
 * No exception management.
